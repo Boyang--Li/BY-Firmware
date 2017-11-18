@@ -15,12 +15,19 @@ param set CAL_GYRO0_ID 2293768
 param set CAL_GYRO0_XOFF 0.01
 param set CAL_MAG0_ID 196616
 param set CAL_MAG0_XOFF 0.01
+param set COM_DISARM_LAND 3
+param set COM_OBL_ACT 2
+param set COM_OBL_RC_ACT 0
+param set COM_OF_LOSS_T 5
 param set COM_RC_IN_MODE 1
 param set EKF2_AID_MASK 1
 param set EKF2_ANGERR_INIT 0.01
 param set EKF2_GBIAS_INIT 0.01
 param set EKF2_HGT_MODE 0
 param set EKF2_MAG_TYPE 1
+param set FW_AIRSPD_MAX 25
+param set FW_AIRSPD_MIN 14
+param set FW_AIRSPD_TRIM 16
 param set MAV_TYPE 20
 param set MC_PITCH_P 6
 param set MC_PITCHRATE_P 0.2
@@ -32,10 +39,13 @@ param set MPC_XY_VEL_P 0.05
 param set MPC_Z_VEL_I 0.15
 param set MPC_Z_VEL_P 0.8
 param set NAV_DLL_ACT 2
+param set RTL_DESCEND_ALT 5.0
+param set RTL_LAND_DELAY 5
+param set RTL_RETURN_ALT 30.0
 param set SENS_BOARD_ROT 0
 param set SENS_BOARD_X_OFF 0.000001
 param set SENS_DPRES_OFF 0.001
-param set SYS_AUTOSTART 4010
+param set SYS_AUTOSTART 13004
 param set SYS_MC_EST_GROUP 2
 param set SYS_RESTART_TYPE 2
 param set VT_TYPE 0
@@ -60,14 +70,15 @@ mc_att_control start
 fw_pos_control_l1 start
 fw_att_control start
 mixer load /dev/pwm_output0 ROMFS/px4fmu_common/mixers/quad_+_vtol.main.mix
-mavlink start -x -u 14556 -r 2000000
-mavlink start -x -u 14557 -r 2000000 -m onboard -o 14540
-mavlink stream -r 80 -s POSITION_TARGET_LOCAL_NED -u 14556
-mavlink stream -r 80 -s LOCAL_POSITION_NED -u 14556
-mavlink stream -r 80 -s GLOBAL_POSITION_INT -u 14556
-mavlink stream -r 80 -s ATTITUDE -u 14556
-mavlink stream -r 80 -s ATTITUDE_QUATERNION -u 14556
-mavlink stream -r 80 -s ATTITUDE_TARGET -u 14556
+mavlink start -x -u 14556 -r 4000000
+mavlink start -x -u 14557 -r 4000000 -m onboard -o 14540
+mavlink stream -r 20 -s EXTENDED_SYS_STATE -u 14557
+mavlink stream -r 50 -s POSITION_TARGET_LOCAL_NED -u 14556
+mavlink stream -r 50 -s LOCAL_POSITION_NED -u 14556
+mavlink stream -r 50 -s GLOBAL_POSITION_INT -u 14556
+mavlink stream -r 50 -s ATTITUDE -u 14556
+mavlink stream -r 50 -s ATTITUDE_QUATERNION -u 14556
+mavlink stream -r 50 -s ATTITUDE_TARGET -u 14556
 mavlink stream -r 50 -s SERVO_OUTPUT_RAW_0 -u 14556
 mavlink stream -r 20 -s RC_CHANNELS -u 14556
 mavlink stream -r 250 -s HIGHRES_IMU -u 14556

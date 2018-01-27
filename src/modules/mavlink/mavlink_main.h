@@ -59,6 +59,10 @@
 #include <systemlib/mavlink_log.h>
 #include <drivers/device/ringbuffer.h>
 
+#ifdef __PX4_POSIX
+#include <net/if.h>
+#endif
+
 #include <uORB/uORB.h>
 #include <uORB/topics/mission.h>
 #include <uORB/topics/mission_result.h>
@@ -76,6 +80,8 @@ enum Protocol {
 	UDP,
 	TCP,
 };
+
+#define HASH_PARAM "_HASH_CHECK"
 
 class Mavlink
 {
@@ -131,14 +137,6 @@ public:
 	static int		destroy_all_instances();
 
 	static int		get_status_all_instances();
-
-	/**
-	 * Set all instances to verbose mode
-	 *
-	 * This is primarily intended for analysis and
-	 * not intended for normal operation
-	 */
-	static int		set_verbose_all_instances(bool enabled);
 
 	static bool		instance_exists(const char *device_name, Mavlink *self);
 
@@ -270,13 +268,6 @@ public:
 	 * Set communication protocol for this mavlink instance
 	 */
 	void 			set_protocol(Protocol p) { _protocol = p; }
-
-	/**
-	 * Set verbose mode
-	 */
-	void			set_verbose(bool v);
-
-	bool			get_verbose() const { return _verbose; }
 
 	/**
 	 * Get the manual input generation mode
@@ -430,6 +421,10 @@ public:
 
 	int 			get_socket_fd() { return _socket_fd; };
 #ifdef __PX4_POSIX
+	const in_addr query_netmask_addr(const int socket_fd, const ifreq &ifreq);
+
+	const in_addr compute_broadcast_addr(const in_addr &host_addr, const in_addr &netmask_addr);
+
 	struct sockaddr_in 	*get_client_source_address() { return &_src_addr; }
 
 	void			set_client_source_initialized() { _src_addr_initialized = true; }
@@ -446,8 +441,6 @@ public:
 	bool			is_usb_uart() { return _is_usb_uart; }
 
 	bool			accepting_commands() { return true; /* non-trivial side effects ((!_config_link_on) || (_mode == MAVLINK_MODE_CONFIG));*/ }
-
-	bool			verbose() { return _verbose; }
 
 	int			get_data_rate()		{ return _datarate; }
 	void			set_data_rate(int rate) { if (rate > 0) { _datarate = rate; } }
@@ -522,7 +515,6 @@ private:
 
 	pthread_t		_receive_thread;
 
-	bool			_verbose;
 	bool			_forwarding_on;
 	bool			_ftp_on;
 #ifndef __PX4_QURT

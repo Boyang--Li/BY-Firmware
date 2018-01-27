@@ -1,4 +1,3 @@
-include(nuttx/px4_impl_nuttx)
 
 px4_nuttx_configure(HWCLASS m4 CONFIG nsh ROMFS y ROMFSROOT px4fmu_test)
 
@@ -20,7 +19,6 @@ set(config_module_list
 	drivers/lsm303d
 	drivers/l3gd20
 	drivers/hmc5883
-	drivers/ms5611
 	#drivers/mb12xx
 	#drivers/srf02
 	#drivers/sf0x
@@ -29,14 +27,10 @@ set(config_module_list
 	drivers/gps
 	#drivers/pwm_out_sim
 	#drivers/hott
-	#drivers/hott/hott_telemetry
-	#drivers/hott/hott_sensors
 	drivers/blinkm
 	drivers/airspeed
-	drivers/ets_airspeed
-	drivers/ms4525_airspeed
-	drivers/ms5525_airspeed
-	drivers/sdp3x_airspeed
+	drivers/barometer
+	drivers/differential_pressure
 	drivers/frsky_telemetry
 	modules/sensors
 	#drivers/mkblctrl
@@ -46,7 +40,6 @@ set(config_module_list
 	drivers/pwm_input
 	drivers/camera_trigger
 	#drivers/bst
-	#drivers/snapdragon_rc_pwm
 	#drivers/lis3mdl
 	drivers/tfmini
 
@@ -74,7 +67,7 @@ set(config_module_list
 	#
 	# Testing
 	#
-	drivers/sf0x/sf0x_tests
+	drivers/distance_sensor/sf0x/sf0x_tests
 	drivers/test_ppm
 	#lib/rc/rc_tests
 	modules/commander/commander_tests
@@ -167,10 +160,6 @@ set(config_module_list
 	# Tutorial code from
 	# https://px4.io/dev/px4_simple_app
 	#examples/px4_simple_app
-
-	# Tutorial code from
-	# https://px4.io/dev/daemon
-	#examples/px4_daemon_app
 
 	# Tutorial code from
 	# https://px4.io/dev/debug_values

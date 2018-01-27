@@ -1,7 +1,6 @@
 # This file is shared between posix_rpi_native.cmake
 # and posix_rpi_cross.cmake.
 
-include(posix/px4_impl_posix)
 
 # This definition allows to differentiate if this just the usual POSIX build
 # or if it is for the RPi.
@@ -16,12 +15,11 @@ set(config_module_list
 	#
 	# Board support modules
 	#
-	drivers/device
 	drivers/airspeed
-	drivers/ets_airspeed
-	drivers/ms4525_airspeed
-	drivers/ms5525_airspeed
-	drivers/sdp3x_airspeed
+	drivers/device
+	drivers/distance_sensor
+	#drivers/barometer
+	drivers/differential_pressure
 
 	modules/sensors
 	platforms/posix/drivers/df_mpu9250_wrapper

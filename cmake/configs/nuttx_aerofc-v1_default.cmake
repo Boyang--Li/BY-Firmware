@@ -1,4 +1,3 @@
-include(nuttx/px4_impl_nuttx)
 
 px4_nuttx_configure(HWCLASS m4 CONFIG nsh ROMFS y ROMFSROOT px4fmu_common)
 
@@ -8,19 +7,18 @@ set(config_module_list
 	#
 	# Board support modules
 	#
-	drivers/device
-	drivers/stm32
-	drivers/led
-	drivers/px4fmu
-	drivers/boards
-	drivers/tap_esc
-	drivers/mpu9250
-	drivers/ms5611
-	drivers/hmc5883
-	drivers/gps
-	drivers/ist8310
-	drivers/ll40ls
 	drivers/aerofc_adc
+	drivers/boards
+	drivers/device
+	drivers/distance_sensor
+	drivers/gps
+	drivers/led
+	drivers/magnetometer/hmc5883
+	drivers/magnetometer/ist8310
+	drivers/mpu9250
+	drivers/px4fmu
+	drivers/stm32
+	drivers/tap_esc
 	modules/sensors
 
 	#

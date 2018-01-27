@@ -252,8 +252,8 @@ coverity_scan: posix_sitl_default
 .PHONY: parameters_metadata airframe_metadata module_documentation px4_metadata
 
 parameters_metadata:
-	@python $(SRC_DIR)/src/modules/systemlib/param/px_process_params.py -s `find $(SRC_DIR)/src -maxdepth 3 -type d` --inject-xml $(SRC_DIR)/src/modules/systemlib/param/parameters_injected.xml --markdown
-	@python $(SRC_DIR)/src/modules/systemlib/param/px_process_params.py -s `find $(SRC_DIR)/src -maxdepth 3 -type d` --inject-xml $(SRC_DIR)/src/modules/systemlib/param/parameters_injected.xml --xml
+	@python $(SRC_DIR)/src/modules/systemlib/param/px_process_params.py -s `find $(SRC_DIR)/src -maxdepth 4 -type d` --inject-xml $(SRC_DIR)/src/modules/systemlib/param/parameters_injected.xml --markdown
+	@python $(SRC_DIR)/src/modules/systemlib/param/px_process_params.py -s `find $(SRC_DIR)/src -maxdepth 4 -type d` --inject-xml $(SRC_DIR)/src/modules/systemlib/param/parameters_injected.xml --xml
 
 airframe_metadata:
 	@python $(SRC_DIR)/Tools/px_process_airframes.py -v -a $(SRC_DIR)/ROMFS/px4fmu_common/init.d --markdown
@@ -326,12 +326,12 @@ posix_sitl_default-clang:
 	@$(PX4_MAKE) -C $(SRC_DIR)/build/posix_sitl_default-clang
 
 clang-tidy: posix_sitl_default-clang
-	@cd $(SRC_DIR)/build/posix_sitl_default-clang && run-clang-tidy-4.0.py -header-filter=".*\.hpp" -j$(j) -p .
+	@cd $(SRC_DIR)/build/posix_sitl_default-clang && $(SRC_DIR)/Tools/run-clang-tidy.py -header-filter=".*\.hpp" -j$(j) -p .
 
 # to automatically fix a single check at a time, eg modernize-redundant-void-arg
 #  % run-clang-tidy-4.0.py -fix -j4 -checks=-\*,modernize-redundant-void-arg -p .
 clang-tidy-fix: posix_sitl_default-clang
-	@cd $(SRC_DIR)/build/posix_sitl_default-clang && run-clang-tidy-4.0.py -header-filter=".*\.hpp" -j$(j) -fix -p .
+	@cd $(SRC_DIR)/build/posix_sitl_default-clang && $(SRC_DIR)/Tools/run-clang-tidy.py -header-filter=".*\.hpp" -j$(j) -fix -p .
 
 # modified version of run-clang-tidy.py to return error codes and only output relevant results
 clang-tidy-quiet: posix_sitl_default-clang
@@ -374,7 +374,8 @@ submodulesupdate:
 gazeboclean:
 	@rm -rf ~/.gazebo/*
 
-distclean: submodulesclean gazeboclean
+distclean: gazeboclean
+	@git submodule deinit -f .
 	@git clean -ff -x -d -e ".project" -e ".cproject" -e ".idea" -e ".settings" -e ".vscode"
 
 # --------------------------------------------------------------------

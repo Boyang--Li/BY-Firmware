@@ -1,7 +1,6 @@
 include(common/px4_git)
 px4_add_git_submodule(TARGET git_cmake_hexagon PATH "cmake/cmake_hexagon")
 
-include(qurt/px4_impl_qurt)
 
 if ("$ENV{HEXAGON_SDK_ROOT}" STREQUAL "")
 	message(FATAL_ERROR "Enviroment variable HEXAGON_SDK_ROOT must be set")
@@ -21,7 +20,7 @@ endif()
 # Disable the creation of the parameters.xml file by scanning individual
 # source files, and scan all source files.  This will create a parameters.xml
 # file that contains all possible parameters, even if the associated module
-# is not used.  This is necessary for parameter synchronization between the 
+# is not used.  This is necessary for parameter synchronization between the
 # ARM and DSP processors.
 set(DISABLE_PARAMS_MODULE_SCOPING TRUE)
 
@@ -42,6 +41,7 @@ set(config_module_list
 	platforms/posix/drivers/df_hmc5883_wrapper
 	platforms/posix/drivers/df_trone_wrapper
 	platforms/posix/drivers/df_isl29501_wrapper
+	platforms/posix/drivers/df_ltc2946_wrapper
 
 	#
 	# System commands
@@ -75,7 +75,6 @@ set(config_module_list
 	# PX4 drivers
 	#
 	drivers/gps
-	drivers/pwm_out_rc_in
 	drivers/spektrum_rc
 	drivers/qshell/qurt
 	drivers/snapdragon_pwm_out
@@ -117,4 +116,5 @@ set(config_df_driver_list
 	hmc5883
 	trone
 	isl29501
+	ltc2946
 	)

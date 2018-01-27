@@ -63,8 +63,6 @@ Geofence::Geofence(Navigator *navigator) :
 	_param_max_hor_distance(this, "GF_MAX_HOR_DIST", false),
 	_param_max_ver_distance(this, "GF_MAX_VER_DIST", false)
 {
-	updateParams();
-
 	// we assume there's no concurrent fence update on startup
 	_updateFence();
 }
@@ -298,7 +296,6 @@ bool Geofence::checkPolygons(double lat, double lon, float altitude)
 	int ret = dm_read(DM_KEY_FENCE_POINTS, 0, &stats, sizeof(mission_stats_entry_s));
 
 	if (ret == sizeof(mission_stats_entry_s) && _update_counter != stats.update_counter) {
-		PX4_INFO("reloading geofence");
 		_updateFence();
 	}
 

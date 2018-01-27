@@ -56,10 +56,6 @@
 #include <termios.h>
 #include <time.h>
 
-#ifdef __PX4_POSIX
-#include <net/if.h>
-#endif
-
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -219,7 +215,6 @@ Mavlink::Mavlink() :
 	_logbuffer(5, sizeof(mavlink_log_s)),
 	_total_counter(0),
 	_receive_thread{},
-	_verbose(false),
 	_forwarding_on(false),
 	_ftp_on(false),
 	_uart_fd(-1),
@@ -489,32 +484,6 @@ Mavlink::get_status_all_instances()
 
 		printf("\ninstance #%u:\n", iterations);
 		inst->display_status();
-
-		/* move on */
-		inst = inst->next;
-		iterations++;
-	}
-
-	/* return an error if there are no instances */
-	return (iterations == 0);
-}
-
-void
-Mavlink::set_verbose(bool v)
-{
-	_verbose = v;
-}
-
-int
-Mavlink::set_verbose_all_instances(bool enabled)
-{
-	Mavlink *inst = ::_mavlink_instances;
-
-	unsigned iterations = 0;
-
-	while (inst != nullptr) {
-
-		inst->set_verbose(enabled);
 
 		/* move on */
 		inst = inst->next;
@@ -836,7 +805,7 @@ int Mavlink::mavlink_open_uart(int baud, const char *uart_name)
 		_rstatus.type = telemetry_status_s::TELEMETRY_STATUS_RADIO_TYPE_USB;
 	}
 
-#if defined (__PX4_LINUX) || defined (__PX4_DARWIN)
+#if defined(__PX4_LINUX) || defined(__PX4_DARWIN) || defined(__PX4_CYGWIN)
 	/* Put in raw mode */
 	cfmakeraw(&uart_config);
 #endif
@@ -933,11 +902,11 @@ Mavlink::get_free_tx_buf()
 
 	} else {
 		// No FIONSPACE on Linux todo:use SIOCOUTQ  and queue size to emulate FIONSPACE
-#if !defined(__PX4_LINUX) && !defined(__PX4_DARWIN)
-		(void) ioctl(_uart_fd, FIONSPACE, (unsigned long)&buf_free);
-#else
+#if defined(__PX4_LINUX) || defined(__PX4_DARWIN) || defined(__PX4_CYGWIN)
 		//Linux cp210x does not support TIOCOUTQ
 		buf_free = 256;
+#else
+		(void) ioctl(_uart_fd, FIONSPACE, (unsigned long)&buf_free);
 #endif
 
 		if (get_flow_control_enabled() && buf_free < FLOW_CONTROL_DISABLE_THRESHOLD) {
@@ -1084,7 +1053,7 @@ Mavlink::send_bytes(const uint8_t *buf, unsigned packet_len)
 void
 Mavlink::find_broadcast_address()
 {
-#if defined (__PX4_LINUX) || defined (__PX4_DARWIN)
+#if defined(__PX4_LINUX) || defined(__PX4_DARWIN) || defined(__PX4_CYGWIN)
 	struct ifconf ifconf;
 	int ret;
 
@@ -1148,7 +1117,6 @@ Mavlink::find_broadcast_address()
 	     offset += sizeof(struct ifreq)
 #endif
 	    ) {
-
 		// Point to next network interface in buffer.
 		cur_ifreq = (struct ifreq *) & (((uint8_t *)ifconf.ifc_req)[offset]);
 
@@ -1160,19 +1128,6 @@ Mavlink::find_broadcast_address()
 		    strcmp(cur_ifreq->ifr_name, "lo1") == 0 ||
 		    strcmp(cur_ifreq->ifr_name, "lo2") == 0) {
 			PX4_DEBUG("skipping loopback");
-			continue;
-		}
-
-		struct ifreq bc_ifreq;
-
-		memset(&bc_ifreq, 0, sizeof(bc_ifreq));
-
-		strncpy(bc_ifreq.ifr_name, cur_ifreq->ifr_name, IF_NAMESIZE);
-
-		ret = ioctl(_socket_fd, SIOCGIFBRDADDR, &bc_ifreq);
-
-		if (ret != 0) {
-			PX4_DEBUG("getting broadcast address failed for %s", cur_ifreq->ifr_name);
 			continue;
 		}
 
@@ -1189,19 +1144,21 @@ Mavlink::find_broadcast_address()
 		}
 
 		if (!_broadcast_address_found) {
-			PX4_INFO("using network interface %s, IP: %s", cur_ifreq->ifr_name, inet_ntoa(sin_addr));
+			const struct in_addr netmask_addr = query_netmask_addr(_socket_fd, *cur_ifreq);
+			const struct in_addr broadcast_addr = compute_broadcast_addr(sin_addr, netmask_addr);
 
-			struct in_addr &bc_addr = ((struct sockaddr_in *)&bc_ifreq.ifr_broadaddr)->sin_addr;
-			PX4_INFO("with broadcast IP: %s", inet_ntoa(bc_addr));
+			PX4_INFO("using network interface %s, IP: %s", cur_ifreq->ifr_name, inet_ntoa(sin_addr));
+			PX4_INFO("with netmask: %s", inet_ntoa(netmask_addr));
+			PX4_INFO("and broadcast IP: %s", inet_ntoa(broadcast_addr));
 
 			_bcast_addr.sin_family = AF_INET;
-			_bcast_addr.sin_addr = bc_addr;
+			_bcast_addr.sin_addr = broadcast_addr;
 
 			_broadcast_address_found = true;
 
 		} else {
-			PX4_INFO("ignoring additional network interface %s, IP:  %s",
-				 cur_ifreq->ifr_name, inet_ntoa(sin_addr));
+			PX4_DEBUG("ignoring additional network interface %s, IP:  %s",
+				  cur_ifreq->ifr_name, inet_ntoa(sin_addr));
 		}
 	}
 
@@ -1228,10 +1185,32 @@ Mavlink::find_broadcast_address()
 #endif
 }
 
+#ifdef __PX4_POSIX
+const in_addr
+Mavlink::query_netmask_addr(const int socket_fd, const ifreq &ifreq)
+{
+	struct ifreq netmask_ifreq;
+	memset(&netmask_ifreq, 0, sizeof(netmask_ifreq));
+	strncpy(netmask_ifreq.ifr_name, ifreq.ifr_name, IF_NAMESIZE);
+	ioctl(socket_fd, SIOCGIFNETMASK, &netmask_ifreq);
+
+	return ((struct sockaddr_in *)&netmask_ifreq.ifr_addr)->sin_addr;
+}
+
+const in_addr
+Mavlink::compute_broadcast_addr(const in_addr &host_addr, const in_addr &netmask_addr)
+{
+	struct in_addr broadcast_addr;
+	broadcast_addr.s_addr = ~netmask_addr.s_addr | host_addr.s_addr;
+
+	return broadcast_addr;
+}
+#endif
+
 void
 Mavlink::init_udp()
 {
-#if defined (__PX4_LINUX) || defined (__PX4_DARWIN)
+#if defined (__PX4_LINUX) || defined (__PX4_DARWIN) || defined(__PX4_CYGWIN)
 
 	PX4_DEBUG("Setting up UDP with port %d", _network_port);
 
@@ -1287,6 +1266,7 @@ void
 Mavlink::send_statustext_critical(const char *string)
 {
 	mavlink_log_critical(&_mavlink_log_pub, string);
+	PX4_ERR(string);
 }
 
 void
@@ -1787,7 +1767,7 @@ Mavlink::task_main(int argc, char *argv[])
 	int temp_int_arg;
 #endif
 
-	while ((ch = px4_getopt(argc, argv, "b:r:d:u:o:m:t:fvwx", &myoptind, &myoptarg)) != EOF) {
+	while ((ch = px4_getopt(argc, argv, "b:r:d:u:o:m:t:fwx", &myoptind, &myoptarg)) != EOF) {
 		switch (ch) {
 		case 'b':
 			_baudrate = strtoul(myoptarg, nullptr, 10);
@@ -1899,10 +1879,6 @@ Mavlink::task_main(int argc, char *argv[])
 
 		case 'f':
 			_forwarding_on = true;
-			break;
-
-		case 'v':
-			_verbose = true;
 			break;
 
 		case 'w':
@@ -2478,7 +2454,7 @@ void Mavlink::check_radio_config()
 
 		/* reset param and save */
 		_radio_id = 0;
-		param_set(_param_radio_id, &_radio_id);
+		param_set_no_notification(_param_radio_id, &_radio_id);
 	}
 }
 
@@ -2802,11 +2778,9 @@ $ mavlink stream -u 14556 -s HIGHRES_IMU -r 50
 	PRINT_MODULE_USAGE_PARAM_STRING('m', "normal", "custom|camera|onboard|osd|magic|config|iridium",
 					"Mode: sets default streams and rates", true);
 	PRINT_MODULE_USAGE_PARAM_FLAG('f', "Enable message forwarding to other Mavlink instances", true);
-	PRINT_MODULE_USAGE_PARAM_FLAG('v', "Verbose output", true);
 	PRINT_MODULE_USAGE_PARAM_FLAG('w', "Wait to send, until first message received", true);
 	PRINT_MODULE_USAGE_PARAM_FLAG('x', "Enable FTP", true);
 
-	PRINT_MODULE_USAGE_COMMAND_DESCR("verbose", "Set verbose mode for all running instances");
 	PRINT_MODULE_USAGE_ARG("on|off", "Enable/disable", true);
 
 	PRINT_MODULE_USAGE_COMMAND_DESCR("stop-all", "Stop all instances");
@@ -2846,15 +2820,6 @@ int mavlink_main(int argc, char *argv[])
 
 	} else if (!strcmp(argv[1], "status")) {
 		return Mavlink::get_status_all_instances();
-
-	} else if (!strcmp(argv[1], "verbose")) {
-		bool on = true;
-
-		if (argc > 2 && !strcmp(argv[2], "off")) {
-			on = false;
-		}
-
-		return Mavlink::set_verbose_all_instances(on);
 
 	} else if (!strcmp(argv[1], "stream")) {
 		return Mavlink::stream_command(argc, argv);

@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2013-2015 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2013-2018 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -51,8 +51,6 @@
 
 #include <cfloat>
 
-#include <controllib/block/BlockParam.hpp>
-#include <controllib/blocks.hpp>
 #include <dataman/dataman.h>
 #include <drivers/drv_hrt.h>
 #include <uORB/topics/home_position.h>
@@ -66,7 +64,7 @@
 
 class Navigator;
 
-class Mission : public MissionBlock
+class Mission final : public MissionBlock
 {
 public:
 	Mission(Navigator *navigator, const char *name);
@@ -87,19 +85,17 @@ public:
 		MISSION_YAWMODE_FRONT_TO_WAYPOINT = 1,
 		MISSION_YAWMODE_FRONT_TO_HOME = 2,
 		MISSION_YAWMODE_BACK_TO_HOME = 3,
-		MISSION_YAWMODE_TO_ROI = 4,
-		MISSION_YAWMODE_MAX = 5
+		MISSION_YAWMODE_MAX = 4
 	};
 
-	bool set_current_offboard_mission_index(unsigned index);
+	bool set_current_offboard_mission_index(uint16_t index);
 
-	int find_offboard_land_start();
+	bool land_start();
+	bool landing();
+
+	uint16_t get_land_start_index() const { return _land_start_index; }
 
 private:
-	/**
-	 * Update onboard mission topic
-	 */
-	void update_onboard_mission();
 
 	/**
 	 * Update offboard mission topic
@@ -157,11 +153,6 @@ private:
 	void altitude_sp_foh_update();
 
 	/**
-	 * Resets the altitude sp foh logic
-	 */
-	void altitude_sp_foh_reset();
-
-	/**
 	 * Update the cruising speed setpoint.
 	 */
 	void cruising_speed_sp_update();
@@ -179,8 +170,8 @@ private:
 	 *
 	 * @return true if current mission item available
 	 */
-	bool prepare_mission_items(bool onboard, struct mission_item_s *mission_item,
-				   struct mission_item_s *next_position_mission_item, bool *has_next_position_item);
+	bool prepare_mission_items(mission_item_s *mission_item, mission_item_s *next_position_mission_item,
+				   bool *has_next_position_item);
 
 	/**
 	 * Read current (offset == 0) or a specific (offset > 0) mission item
@@ -188,7 +179,7 @@ private:
 	 *
 	 * @return true if successful
 	 */
-	bool read_mission_item(bool onboard, int offset, struct mission_item_s *mission_item);
+	bool read_mission_item(int offset, mission_item_s *mission_item);
 
 	/**
 	 * Save current offboard mission state to dataman
@@ -211,11 +202,6 @@ private:
 	void set_current_offboard_mission_item();
 
 	/**
-	 * Set that the mission is finished if one exists or that none exists
-	 */
-	void set_mission_finished();
-
-	/**
 	 * Check whether a mission is ready to go
 	 */
 	void check_mission_valid(bool force);
@@ -236,32 +222,35 @@ private:
 	 */
 	void generate_waypoint_from_heading(struct position_setpoint_s *setpoint, float yaw);
 
-	control::BlockParamInt _param_onboard_enabled;
-	control::BlockParamFloat _param_takeoff_alt;
+	/**
+	 * Find and store the index of the landing sequence (DO_LAND_START)
+	 */
+	bool find_offboard_land_start();
+
 	control::BlockParamFloat _param_dist_1wp;
 	control::BlockParamFloat _param_dist_between_wps;
 	control::BlockParamInt _param_altmode;
 	control::BlockParamInt _param_yawmode;
-	control::BlockParamFloat _param_fw_climbout_diff;
+	control::BlockParamInt _param_mnt_yaw_ctl;
 
-	struct mission_s _onboard_mission {};
 	struct mission_s _offboard_mission {};
 
-	int _current_onboard_mission_index{-1};
-	int _current_offboard_mission_index{-1};
+	int32_t _current_offboard_mission_index{-1};
+
+	// track location of planned mission landing
+	bool	_land_start_available{false};
+	uint16_t _land_start_index{UINT16_MAX};		/**< index of DO_LAND_START, INVALID_DO_LAND_START if no planned landing */
+
 	bool _need_takeoff{true};					/**< if true, then takeoff must be performed before going to the first waypoint (if needed) */
 
 	enum {
 		MISSION_TYPE_NONE,
-		MISSION_TYPE_ONBOARD,
 		MISSION_TYPE_OFFBOARD
 	} _mission_type{MISSION_TYPE_NONE};
 
 	bool _inited{false};
 	bool _home_inited{false};
 	bool _need_mission_reset{false};
-
-	MissionFeasibilityChecker _missionFeasibilityChecker; /**< class that checks if a mission is feasible */
 
 	float _min_current_sp_distance_xy{FLT_MAX}; /**< minimum distance which was achieved to the current waypoint  */
 
@@ -275,7 +264,8 @@ private:
 		WORK_ITEM_TYPE_ALIGN,		/**< align for next waypoint */
 		WORK_ITEM_TYPE_CMD_BEFORE_MOVE,
 		WORK_ITEM_TYPE_TRANSITON_AFTER_TAKEOFF,
-		WORK_ITEM_TYPE_MOVE_TO_LAND_AFTER_TRANSITION
+		WORK_ITEM_TYPE_MOVE_TO_LAND_AFTER_TRANSITION,
+		WORK_ITEM_TYPE_PRECISION_LAND
 	} _work_item_type{WORK_ITEM_TYPE_DEFAULT};	/**< current type of work to do (sub mission item) */
 };
 

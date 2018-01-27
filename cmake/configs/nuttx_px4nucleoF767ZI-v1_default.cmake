@@ -1,4 +1,3 @@
-include(nuttx/px4_impl_nuttx)
 
 px4_nuttx_configure(HWCLASS m7 CONFIG nsh ROMFS y ROMFSROOT px4fmu_common)
 
@@ -8,49 +7,38 @@ set(config_module_list
 	#
 	# Board support modules
 	#
+	drivers/barometer
+	drivers/differential_pressure
+	drivers/distance_sensor
+	drivers/magnetometer
+
+	drivers/adis16448
 	drivers/airspeed
 	drivers/blinkm
 	drivers/bma180
 	drivers/bmi160
-	drivers/bmp280
 	drivers/boards
 	drivers/bst
 	drivers/camera_trigger
 	drivers/device
-	drivers/ets_airspeed
 	drivers/frsky_telemetry
 	drivers/gps
-	drivers/hmc5883
 	drivers/hott
-	drivers/hott/hott_sensors
-	drivers/hott/hott_telemetry
 	drivers/led
-	drivers/lis3mdl
-	drivers/ll40ls
-	drivers/mb12xx
 	drivers/mkblctrl
 	drivers/mpu6000
 	drivers/mpu9250
-	drivers/ms4525_airspeed
-	drivers/ms5525_airspeed
-	drivers/ms5611
 	drivers/oreoled
 	drivers/pwm_input
 	drivers/pwm_out_sim
 	drivers/px4flow
 	drivers/px4fmu
 	drivers/rgbled
-	drivers/sdp3x_airspeed
-	drivers/sf0x
-	drivers/snapdragon_rc_pwm
-	drivers/srf02
 	drivers/stm32
 	drivers/stm32/adc
 	drivers/stm32/tone_alarm
 	drivers/tap_esc
-	drivers/teraranger
 	modules/sensors
-	drivers/tfmini
 
 	#
 	# System commands
@@ -159,10 +147,6 @@ set(config_module_list
 	# Tutorial code from
 	# https://px4.io/dev/px4_simple_app
 	examples/px4_simple_app
-
-	# Tutorial code from
-	# https://px4.io/dev/daemon
-	#examples/px4_daemon_app
 
 	# Tutorial code from
 	# https://px4.io/dev/debug_values

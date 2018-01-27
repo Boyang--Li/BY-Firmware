@@ -46,7 +46,7 @@
 
 class Navigator;
 
-class RTL : public MissionBlock
+class RTL final : public MissionBlock
 {
 public:
 	RTL(Navigator *navigator, const char *name);
@@ -57,6 +57,8 @@ public:
 	void on_active() override;
 
 	void set_return_alt_min(bool min);
+
+	bool mission_landing_required();
 
 private:
 	/**
@@ -86,6 +88,7 @@ private:
 	control::BlockParamFloat _param_descend_alt;
 	control::BlockParamFloat _param_land_delay;
 	control::BlockParamFloat _param_rtl_min_dist;
+	control::BlockParamInt _param_rtl_land_type;
 };
 
 #endif

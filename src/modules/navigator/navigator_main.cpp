@@ -91,6 +91,7 @@ Navigator::Navigator() :
 	_loiter(this, "LOI"),
 	_takeoff(this, "TKF"),
 	_land(this, "LND"),
+	_precland(this, "PLD"),
 	_rtl(this, "RTL"),
 	_rcLoss(this, "RCL"),
 	_dataLinkLoss(this, "DLL"),
@@ -105,7 +106,12 @@ Navigator::Navigator() :
 	_param_force_vtol(this, "FORCE_VT"),
 	_param_traffic_avoidance_mode(this, "TRAFF_AVOID"),
 	// non-navigator params
-	_param_loiter_min_alt(this, "MIS_LTRMIN_ALT", false)
+	_param_loiter_min_alt(this, "MIS_LTRMIN_ALT", false),
+	_param_takeoff_min_alt(this, "MIS_TAKEOFF_ALT", false),
+	_param_yaw_timeout(this, "MIS_YAW_TMT", false),
+	_param_yaw_err(this, "MIS_YAW_ERR", false),
+	_param_back_trans_dec_mss(this, "VT_B_DEC_MSS", false),
+	_param_reverse_delay(this, "VT_B_REV_DEL", false)
 {
 	/* Create a list of our possible navigation types */
 	_navigation_mode_array[0] = &_mission;
@@ -117,9 +123,9 @@ Navigator::Navigator() :
 	_navigation_mode_array[6] = &_rcLoss;
 	_navigation_mode_array[7] = &_takeoff;
 	_navigation_mode_array[8] = &_land;
-	_navigation_mode_array[9] = &_follow_target;
+	_navigation_mode_array[9] = &_precland;
+	_navigation_mode_array[10] = &_follow_target;
 
-	updateParams();
 }
 
 Navigator::~Navigator()
@@ -214,10 +220,6 @@ Navigator::params_update()
 	parameter_update_s param_update;
 	orb_copy(ORB_ID(parameter_update), _param_update_sub, &param_update);
 	updateParams();
-
-	if (_navigation_mode) {
-		_navigation_mode->updateParams();
-	}
 }
 
 void
@@ -249,8 +251,7 @@ Navigator::task_main()
 	_vstatus_sub = orb_subscribe(ORB_ID(vehicle_status));
 	_land_detected_sub = orb_subscribe(ORB_ID(vehicle_land_detected));
 	_home_pos_sub = orb_subscribe(ORB_ID(home_position));
-	_onboard_mission_sub = orb_subscribe(ORB_ID(onboard_mission));
-	_offboard_mission_sub = orb_subscribe(ORB_ID(offboard_mission));
+	_offboard_mission_sub = orb_subscribe(ORB_ID(mission));
 	_param_update_sub = orb_subscribe(ORB_ID(parameter_update));
 	_vehicle_command_sub = orb_subscribe(ORB_ID(vehicle_command));
 	_traffic_sub = orb_subscribe(ORB_ID(transponder_report));
@@ -482,25 +483,23 @@ Navigator::task_main()
 				/* find NAV_CMD_DO_LAND_START in the mission and
 				 * use MAV_CMD_MISSION_START to start the mission there
 				 */
-				int land_start = _mission.find_offboard_land_start();
-
-				if (land_start != -1) {
+				if (_mission.land_start()) {
 					vehicle_command_s vcmd = {};
 					vcmd.command = vehicle_command_s::VEHICLE_CMD_MISSION_START;
-					vcmd.param1 = land_start;
+					vcmd.param1 = _mission.get_land_start_index();
 					publish_vehicle_cmd(&vcmd);
 
 				} else {
-					PX4_WARN("planned landing not available");
+					PX4_WARN("planned mission landing not available");
 				}
 
 				publish_vehicle_command_ack(cmd, vehicle_command_s::VEHICLE_CMD_RESULT_ACCEPTED);
 
 			} else if (cmd.command == vehicle_command_s::VEHICLE_CMD_MISSION_START) {
-				if (_mission_result.valid &&
-				    PX4_ISFINITE(cmd.param1) && (cmd.param1 >= 0) && (cmd.param1 < _mission_result.seq_total)) {
-
-					_mission.set_current_offboard_mission_index(cmd.param1);
+				if (_mission_result.valid && PX4_ISFINITE(cmd.param1) && (cmd.param1 >= 0)) {
+					if (!_mission.set_current_offboard_mission_index(cmd.param1)) {
+						PX4_WARN("CMD_MISSION_START failed");
+					}
 				}
 
 				// CMD_MISSION_START is acknowledged by commander
@@ -526,9 +525,33 @@ Navigator::task_main()
 				publish_vehicle_command_ack(cmd, vehicle_command_s::VEHICLE_CMD_RESULT_ACCEPTED);
 
 			} else if (cmd.command == vehicle_command_s::VEHICLE_CMD_DO_SET_ROI
-				   || cmd.command == vehicle_command_s::VEHICLE_CMD_NAV_ROI) {
+				   || cmd.command == vehicle_command_s::VEHICLE_CMD_NAV_ROI
+				   || cmd.command == vehicle_command_s::VEHICLE_CMD_DO_SET_ROI_LOCATION
+				   || cmd.command == vehicle_command_s::VEHICLE_CMD_DO_SET_ROI_WPNEXT_OFFSET
+				   || cmd.command == vehicle_command_s::VEHICLE_CMD_DO_SET_ROI_NONE) {
 				_vroi = {};
-				_vroi.mode = cmd.param1;
+
+				switch (cmd.command) {
+				case vehicle_command_s::VEHICLE_CMD_DO_SET_ROI:
+				case vehicle_command_s::VEHICLE_CMD_NAV_ROI:
+					_vroi.mode = cmd.param1;
+					break;
+
+				case vehicle_command_s::VEHICLE_CMD_DO_SET_ROI_LOCATION:
+					_vroi.mode = vehicle_command_s::VEHICLE_ROI_LOCATION;
+					break;
+
+				case vehicle_command_s::VEHICLE_CMD_DO_SET_ROI_WPNEXT_OFFSET:
+					_vroi.mode = vehicle_command_s::VEHICLE_ROI_WPNEXT;
+					_vroi.pitchOffset = cmd.param5;
+					_vroi.rollOffset = cmd.param6;
+					_vroi.yawOffset = cmd.param7;
+					break;
+
+				case vehicle_command_s::VEHICLE_CMD_DO_SET_ROI_NONE:
+					_vroi.mode = vehicle_command_s::VEHICLE_ROI_NONE;
+					break;
+				}
 
 				switch (_vroi.mode) {
 				case vehicle_command_s::VEHICLE_ROI_NONE:
@@ -631,7 +654,15 @@ Navigator::task_main()
 
 		case vehicle_status_s::NAVIGATION_STATE_AUTO_RTL:
 			_pos_sp_triplet_published_invalid_once = false;
-			navigation_mode_new = &_rtl;
+
+			// if RTL is set to use a mission landing and mission has a planned landing, then use MISSION
+			if (mission_landing_required() && on_mission_landing()) {
+				navigation_mode_new = &_mission;
+
+			} else {
+				navigation_mode_new = &_rtl;
+			}
+
 			break;
 
 		case vehicle_status_s::NAVIGATION_STATE_AUTO_TAKEOFF:
@@ -642,6 +673,12 @@ Navigator::task_main()
 		case vehicle_status_s::NAVIGATION_STATE_AUTO_LAND:
 			_pos_sp_triplet_published_invalid_once = false;
 			navigation_mode_new = &_land;
+			break;
+
+		case vehicle_status_s::NAVIGATION_STATE_AUTO_PRECLAND:
+			_pos_sp_triplet_published_invalid_once = false;
+			navigation_mode_new = &_precland;
+			_precland.set_mode(PrecLandMode::Required);
 			break;
 
 		case vehicle_status_s::NAVIGATION_STATE_DESCEND:
@@ -735,7 +772,6 @@ Navigator::task_main()
 	orb_unsubscribe(_vstatus_sub);
 	orb_unsubscribe(_land_detected_sub);
 	orb_unsubscribe(_home_pos_sub);
-	orb_unsubscribe(_onboard_mission_sub);
 	orb_unsubscribe(_offboard_mission_sub);
 	orb_unsubscribe(_param_update_sub);
 	orb_unsubscribe(_vehicle_command_sub);
@@ -1124,10 +1160,6 @@ Navigator::publish_mission_result()
 		/* advertise and publish */
 		_mission_result_pub = orb_advertise(ORB_ID(mission_result), &_mission_result);
 	}
-
-	// Don't reset current waypoint because it won't be updated e.g. if not in mission mode
-	// however, the current is still valid and therefore helpful for ground stations.
-	//_mission_result.seq_current = 0;
 
 	/* reset some of the flags */
 	_mission_result.item_do_jump_changed = false;

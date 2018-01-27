@@ -55,11 +55,7 @@
 #include <uORB/topics/vtol_vehicle_status.h>
 
 MissionBlock::MissionBlock(Navigator *navigator, const char *name) :
-	NavigatorMode(navigator, name),
-	_param_yaw_timeout(this, "MIS_YAW_TMT", false),
-	_param_yaw_err(this, "MIS_YAW_ERR", false),
-	_param_back_trans_dec_mss(this, "VT_B_DEC_MSS", false),
-	_param_reverse_delay(this, "VT_B_REV_DEL", false)
+	NavigatorMode(navigator, name)
 {
 }
 
@@ -90,6 +86,9 @@ MissionBlock::is_mission_item_reached()
 	case NAV_CMD_DO_MOUNT_CONFIGURE:
 	case NAV_CMD_DO_MOUNT_CONTROL:
 	case NAV_CMD_DO_SET_ROI:
+	case NAV_CMD_DO_SET_ROI_LOCATION:
+	case NAV_CMD_DO_SET_ROI_WPNEXT_OFFSET:
+	case NAV_CMD_DO_SET_ROI_NONE:
 	case NAV_CMD_DO_SET_CAM_TRIGG_DIST:
 	case NAV_CMD_DO_SET_CAM_TRIGG_INTERVAL:
 	case NAV_CMD_SET_CAMERA_MODE:
@@ -293,9 +292,11 @@ MissionBlock::is_mission_item_reached()
 				float velocity = sqrtf(_navigator->get_local_position()->vx * _navigator->get_local_position()->vx +
 						       _navigator->get_local_position()->vy * _navigator->get_local_position()->vy);
 
-				if (_param_back_trans_dec_mss.get() > FLT_EPSILON && velocity > FLT_EPSILON) {
-					mission_acceptance_radius = ((velocity / _param_back_trans_dec_mss.get() / 2) * velocity) + _param_reverse_delay.get() *
-								    velocity;
+				const float back_trans_dec = _navigator->get_vtol_back_trans_deceleration();
+				const float reverse_delay = _navigator->get_vtol_reverse_delay();
+
+				if (back_trans_dec > FLT_EPSILON && velocity > FLT_EPSILON) {
+					mission_acceptance_radius = ((velocity / back_trans_dec / 2) * velocity) + reverse_delay * velocity;
 
 				}
 
@@ -328,16 +329,16 @@ MissionBlock::is_mission_item_reached()
 			float yaw_err = _wrap_pi(_mission_item.yaw - cog);
 
 			/* accept yaw if reached or if timeout is set in which case we ignore not forced headings */
-			if (fabsf(yaw_err) < math::radians(_param_yaw_err.get())
-			    || (_param_yaw_timeout.get() >= FLT_EPSILON && !_mission_item.force_heading)) {
+			if (fabsf(yaw_err) < math::radians(_navigator->get_yaw_threshold())
+			    || (_navigator->get_yaw_timeout() >= FLT_EPSILON && !_mission_item.force_heading)) {
 
 				_waypoint_yaw_reached = true;
 			}
 
 			/* if heading needs to be reached, the timeout is enabled and we don't make it, abort mission */
 			if (!_waypoint_yaw_reached && _mission_item.force_heading &&
-			    (_param_yaw_timeout.get() >= FLT_EPSILON) &&
-			    (now - _time_wp_reached >= (hrt_abstime)_param_yaw_timeout.get() * 1e6f)) {
+			    (_navigator->get_yaw_timeout() >= FLT_EPSILON) &&
+			    (now - _time_wp_reached >= (hrt_abstime)_navigator->get_yaw_timeout() * 1e6f)) {
 
 				_navigator->set_mission_failure("unable to reach heading within timeout");
 			}
@@ -450,7 +451,13 @@ MissionBlock::issue_command(const mission_item_s &item)
 		vcmd.param4 = item.params[3];
 		vcmd.param5 = item.params[4];
 		vcmd.param6 = item.params[5];
-		vcmd.param7 = item.params[6];
+
+		if (item.nav_cmd == NAV_CMD_DO_SET_ROI_LOCATION && item.altitude_is_relative) {
+			vcmd.param7 = item.params[6] + _navigator->get_home_position()->alt;
+
+		} else {
+			vcmd.param7 = item.params[6];
+		}
 
 		_navigator->publish_vehicle_cmd(&vcmd);
 	}
@@ -560,16 +567,6 @@ MissionBlock::mission_item_to_position_setpoint(const mission_item_s &item, posi
 }
 
 void
-MissionBlock::set_previous_pos_setpoint()
-{
-	struct position_setpoint_triplet_s *pos_sp_triplet = _navigator->get_position_setpoint_triplet();
-
-	if (pos_sp_triplet->current.valid) {
-		memcpy(&pos_sp_triplet->previous, &pos_sp_triplet->current, sizeof(struct position_setpoint_s));
-	}
-}
-
-void
 MissionBlock::set_loiter_item(struct mission_item_s *item, float min_clearance)
 {
 	if (_navigator->get_land_detected()->landed) {
@@ -657,22 +654,6 @@ MissionBlock::set_land_item(struct mission_item_s *item, bool at_current_locatio
 
 	item->altitude = 0;
 	item->altitude_is_relative = false;
-	item->loiter_radius = _navigator->get_loiter_radius();
-	item->acceptance_radius = _navigator->get_acceptance_radius();
-	item->time_inside = 0.0f;
-	item->autocontinue = true;
-	item->origin = ORIGIN_ONBOARD;
-}
-
-void
-MissionBlock::set_current_position_item(struct mission_item_s *item)
-{
-	item->nav_cmd = NAV_CMD_WAYPOINT;
-	item->lat = _navigator->get_global_position()->lat;
-	item->lon = _navigator->get_global_position()->lon;
-	item->altitude_is_relative = false;
-	item->altitude = _navigator->get_global_position()->alt;
-	item->yaw = NAN;
 	item->loiter_radius = _navigator->get_loiter_radius();
 	item->acceptance_radius = _navigator->get_acceptance_radius();
 	item->time_inside = 0.0f;

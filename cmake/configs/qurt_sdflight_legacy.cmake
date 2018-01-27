@@ -1,7 +1,6 @@
 include(common/px4_git)
 px4_add_git_submodule(TARGET git_cmake_hexagon PATH "cmake/cmake_hexagon")
 
-include(qurt/px4_impl_qurt)
 
 if ("$ENV{HEXAGON_SDK_ROOT}" STREQUAL "")
 	message(FATAL_ERROR "Enviroment variable HEXAGON_SDK_ROOT must be set")
@@ -71,7 +70,6 @@ set(config_module_list
 	# PX4 drivers
 	#
 	drivers/gps
-	drivers/pwm_out_rc_in
 	drivers/spektrum_rc
 	drivers/qshell/qurt
 

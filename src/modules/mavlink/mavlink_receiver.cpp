@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2012-2017 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2012-2018 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -150,9 +150,12 @@ MavlinkReceiver::MavlinkReceiver(Mavlink *parent) :
 	_hil_local_alt0(0.0f),
 	_hil_local_proj_ref{},
 	_offboard_control_mode{},
+<<<<<<< HEAD
 	_att_sp{},
 	_rates_sp{},
 	_vehicle_status{},
+=======
+>>>>>>> origin
 	_time_offset_avg_alpha(0.8),
 	_time_offset(0),
 	_orb_class_instance(-1),
@@ -1141,6 +1144,25 @@ MavlinkReceiver::handle_message_local_position_ned_cov(mavlink_message_t *msg)
 	vision_position.eph = sqrtf(fmaxf(pos.covariance[0], pos.covariance[9]));
 	vision_position.epv = sqrtf(pos.covariance[17]);
 
+	// set position/velocity invalid if standard deviation is bigger than ev_max_std_dev
+	const float ev_max_std_dev = 100.0f;
+
+	if (vision_position.eph > ev_max_std_dev) {
+		vision_position.xy_valid = false;
+	}
+
+	if (sqrtf(fmaxf(pos.covariance[24], pos.covariance[30])) > ev_max_std_dev) {
+		vision_position.v_xy_valid = false;
+	}
+
+	if (vision_position.epv > ev_max_std_dev) {
+		vision_position.z_valid = false;
+	}
+
+	if (sqrtf(pos.covariance[35]) > ev_max_std_dev) {
+		vision_position.v_z_valid = false;
+	}
+
 	vision_position.xy_global = globallocalconverter_initialized();
 	vision_position.z_global = globallocalconverter_initialized();
 	vision_position.ref_timestamp = _global_ref_timestamp;
@@ -1273,48 +1295,56 @@ MavlinkReceiver::handle_message_set_attitude_target(mavlink_message_t *msg)
 
 				/* Publish attitude setpoint if attitude and thrust ignore bits are not set */
 				if (!(_offboard_control_mode.ignore_attitude)) {
-					_att_sp.timestamp = hrt_absolute_time();
+					vehicle_attitude_setpoint_s att_sp = {};
+					att_sp.timestamp = hrt_absolute_time();
 
 					if (!ignore_attitude_msg) { // only copy att sp if message contained new data
-						mavlink_quaternion_to_euler(set_attitude_target.q,
-									    &_att_sp.roll_body, &_att_sp.pitch_body, &_att_sp.yaw_body);
-						_att_sp.yaw_sp_move_rate = 0.0;
-						memcpy(_att_sp.q_d, set_attitude_target.q, sizeof(_att_sp.q_d));
-						_att_sp.q_d_valid = true;
+						mavlink_quaternion_to_euler(set_attitude_target.q, &att_sp.roll_body, &att_sp.pitch_body, &att_sp.yaw_body);
+						att_sp.yaw_sp_move_rate = 0.0;
+						memcpy(att_sp.q_d, set_attitude_target.q, sizeof(att_sp.q_d));
+						att_sp.q_d_valid = true;
 					}
 
 					if (!_offboard_control_mode.ignore_thrust) { // dont't overwrite thrust if it's invalid
-						_att_sp.thrust = set_attitude_target.thrust;
+						att_sp.thrust = set_attitude_target.thrust;
 					}
 
 					if (_att_sp_pub == nullptr) {
+<<<<<<< HEAD
 						_att_sp_pub = orb_advertise(_attitude_setpoint_id, &_att_sp);
 
 					} else {
 						orb_publish(_attitude_setpoint_id, _att_sp_pub, &_att_sp);
+=======
+						_att_sp_pub = orb_advertise(ORB_ID(vehicle_attitude_setpoint), &att_sp);
+
+					} else {
+						orb_publish(ORB_ID(vehicle_attitude_setpoint), _att_sp_pub, &att_sp);
+>>>>>>> origin
 					}
 				}
 
 				/* Publish attitude rate setpoint if bodyrate and thrust ignore bits are not set */
 				///XXX add support for ignoring individual axes
 				if (!(_offboard_control_mode.ignore_bodyrate)) {
-					_rates_sp.timestamp = hrt_absolute_time();
+					vehicle_rates_setpoint_s rates_sp = {};
+					rates_sp.timestamp = hrt_absolute_time();
 
 					if (!ignore_bodyrate_msg) { // only copy att rates sp if message contained new data
-						_rates_sp.roll = set_attitude_target.body_roll_rate;
-						_rates_sp.pitch = set_attitude_target.body_pitch_rate;
-						_rates_sp.yaw = set_attitude_target.body_yaw_rate;
+						rates_sp.roll = set_attitude_target.body_roll_rate;
+						rates_sp.pitch = set_attitude_target.body_pitch_rate;
+						rates_sp.yaw = set_attitude_target.body_yaw_rate;
 					}
 
 					if (!_offboard_control_mode.ignore_thrust) { // dont't overwrite thrust if it's invalid
-						_rates_sp.thrust = set_attitude_target.thrust;
+						rates_sp.thrust = set_attitude_target.thrust;
 					}
 
 					if (_rates_sp_pub == nullptr) {
-						_rates_sp_pub = orb_advertise(ORB_ID(vehicle_rates_setpoint), &_rates_sp);
+						_rates_sp_pub = orb_advertise(ORB_ID(vehicle_rates_setpoint), &rates_sp);
 
 					} else {
-						orb_publish(ORB_ID(vehicle_rates_setpoint), _rates_sp_pub, &_rates_sp);
+						orb_publish(ORB_ID(vehicle_rates_setpoint), _rates_sp_pub, &rates_sp);
 					}
 				}
 			}
@@ -2390,9 +2420,6 @@ MavlinkReceiver::receive_thread(void *arg)
 	ssize_t nread = 0;
 	hrt_abstime last_send_update = 0;
 
-	bool verbose = _mavlink->get_verbose();
-	_mission_manager.set_verbose(verbose);
-
 	while (!_mavlink->_task_should_exit) {
 		if (poll(&fds[0], 1, timeout) > 0) {
 			if (_mavlink->get_protocol() == SERIAL) {
@@ -2497,11 +2524,6 @@ MavlinkReceiver::receive_thread(void *arg)
 
 			_mavlink_log_handler.send(t);
 			last_send_update = t;
-
-			if (verbose != _mavlink->get_verbose()) {
-				verbose = !verbose;
-				_mission_manager.set_verbose(verbose);
-			}
 		}
 
 	}

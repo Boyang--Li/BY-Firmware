@@ -150,12 +150,9 @@ MavlinkReceiver::MavlinkReceiver(Mavlink *parent) :
 	_hil_local_alt0(0.0f),
 	_hil_local_proj_ref{},
 	_offboard_control_mode{},
-<<<<<<< HEAD
 	_att_sp{},
 	_rates_sp{},
 	_vehicle_status{},
-=======
->>>>>>> origin
 	_time_offset_avg_alpha(0.8),
 	_time_offset(0),
 	_orb_class_instance(-1),
@@ -1310,17 +1307,9 @@ MavlinkReceiver::handle_message_set_attitude_target(mavlink_message_t *msg)
 					}
 
 					if (_att_sp_pub == nullptr) {
-<<<<<<< HEAD
 						_att_sp_pub = orb_advertise(_attitude_setpoint_id, &_att_sp);
-
 					} else {
 						orb_publish(_attitude_setpoint_id, _att_sp_pub, &_att_sp);
-=======
-						_att_sp_pub = orb_advertise(ORB_ID(vehicle_attitude_setpoint), &att_sp);
-
-					} else {
-						orb_publish(ORB_ID(vehicle_attitude_setpoint), _att_sp_pub, &att_sp);
->>>>>>> origin
 					}
 				}
 

@@ -193,11 +193,11 @@ void Tailsitter::update_transition_state()
 		//			time_since_trans_start / _params->front_trans_duration;
 		// time will be less than 2s? or fixed to 2s ;;; Fitted with a polynomical by matlab and then put here		
 		// variables: _pitch_transition_start ; time_since_trans_start    pitch_cmd = F (t,pitch_start) 
-		_v_att_sp->pitch_body = _pitch_transition_start - (float)(4.5594*pow(time_since_trans_start,9) 
-			+ 36.9529*pow(time_since_trans_start,8) - 121.8588*pow(time_since_trans_start,7) 
-			+ 209.5627*pow(time_since_trans_start,6) - 200.1644*pow(time_since_trans_start,5) 
-			+ 104.5549*pow(time_since_trans_start,4) - 26.9004*pow(time_since_trans_start,3) 
-			+ 1.5904*pow(time_since_trans_start,2) + 0.5678*pow(time_since_trans_start,1) + 0.5477);
+		_v_att_sp->pitch_body = _pitch_transition_start + (float)(-7.1911*pow(time_since_trans_start,9) 
+			+ 67.9945*pow(time_since_trans_start,8) - 273.5676*pow(time_since_trans_start,7) 
+			+ 611.8556*pow(time_since_trans_start,6) - 832.3488*pow(time_since_trans_start,5) 
+			+ 705.2701*pow(time_since_trans_start,4) - 364.02*pow(time_since_trans_start,3) 
+			+ 106.5292*pow(time_since_trans_start,2) - 15.708*pow(time_since_trans_start,1));
 		
 		_v_att_sp->pitch_body = math::constrain(_v_att_sp->pitch_body, PITCH_TRANSITION_FRONT_P1 - 0.2f,
 							_pitch_transition_start);
@@ -234,14 +234,15 @@ void Tailsitter::update_transition_state()
 
 	// modify the throttle setpoint for optimal forward transition
 	if (_v_control_mode->flag_control_climb_rate_enabled) {
-		_v_att_sp->thrust = _params->front_trans_throttle;
+	//	_v_att_sp->thrust = _params->front_trans_throttle;
 	//  variables: _pitch_transition_start ; time_since_trans_start    thrust_cmd = F (t,pitch_start) 
-	/*	_v_att_sp->thrust = (float) (-4.5594*pow(time_since_trans_start,9)
+		_v_att_sp->thrust = 0.2f + (float) (-4.5594*pow(time_since_trans_start,9)
 			+ 36.9529*pow(time_since_trans_start,8) - 121.8588*pow(time_since_trans_start,7)
 			+ 209.5627*pow(time_since_trans_start,6) - 200.1644*pow(time_since_trans_start,5)
 			+ 104.5549*pow(time_since_trans_start,4) - 26.9004*pow(time_since_trans_start,3)
 			+ 1.5904*pow(time_since_trans_start,2) + 0.5678*pow(time_since_trans_start,1) + 0.5477);
-	*/
+
+		_v_att_sp->thrust = math::constrain(_v_att_sp->thrust, 0.0f, 1.0f);
 	} else {
 		_v_att_sp->thrust = _mc_virtual_att_sp->thrust;
 	}

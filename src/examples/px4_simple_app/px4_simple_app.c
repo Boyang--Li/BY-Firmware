@@ -46,6 +46,7 @@
 #include <poll.h>
 #include <string.h>
 #include <math.h>
+#include <drivers/drv_hrt.h>
 
 #include <uORB/uORB.h>
 #include <uORB/topics/sensor_combined.h>
@@ -56,6 +57,8 @@ __EXPORT int px4_simple_app_main(int argc, char *argv[]);
 int px4_simple_app_main(int argc, char *argv[])
 {
 	PX4_INFO("Hello Sky!");
+
+	hrt_abstime transition_start = hrt_absolute_time();
 
 	/* subscribe to sensor_combined topic */
 	int sensor_sub_fd = orb_subscribe(ORB_ID(sensor_combined));
@@ -77,7 +80,7 @@ int px4_simple_app_main(int argc, char *argv[])
 
 	int error_counter = 0;
 
-	for (int i = 0; i < 5; i++) {
+	for (int i = 0; i < 10; i++) {
 		/* wait for sensor update of 1 file descriptor for 1000 ms (1 second) */
 		int poll_ret = px4_poll(fds, 1, 1000);
 
@@ -102,10 +105,10 @@ int px4_simple_app_main(int argc, char *argv[])
 				struct sensor_combined_s raw;
 				/* copy sensors raw data into local buffer */
 				orb_copy(ORB_ID(sensor_combined), sensor_sub_fd, &raw);
-				PX4_INFO("Accelerometer:\t%8.4f\t%8.4f\t%8.4f",
-					 (double)raw.accelerometer_m_s2[0],
-					 (double)raw.accelerometer_m_s2[1],
-					 (double)raw.accelerometer_m_s2[2]);
+				// PX4_INFO("Accelerometer:\t%8.4f\t%8.4f\t%8.4f",
+				// 	 (double)raw.accelerometer_m_s2[0],
+				// 	 (double)raw.accelerometer_m_s2[1],
+				// 	 (double)raw.accelerometer_m_s2[2]);
 
 				/* set att and publish this information for other apps
 				 the following does not have any meaning, it's just an example
@@ -120,6 +123,21 @@ int px4_simple_app_main(int argc, char *argv[])
 			/* there could be more file descriptors here, in the form like:
 			 * if (fds[1..n].revents & POLLIN) {}
 			 */
+			float time_since_trans_start = (float)(hrt_absolute_time() - transition_start) * 1e-6f;
+
+			float calculated_pitch = (float)(-7.1911*pow(time_since_trans_start,9) 
+			+ 67.9945*pow(time_since_trans_start,8) - 273.5676*pow(time_since_trans_start,7) 
+			+ 611.8556*pow(time_since_trans_start,6) - 832.3488*pow(time_since_trans_start,5) 
+			+ 705.2701*pow(time_since_trans_start,4) - 364.02*pow(time_since_trans_start,3) 
+			+ 106.5292*pow(time_since_trans_start,2) - 15.708*pow(time_since_trans_start,1));
+
+			float calculated_thrust = (float) (-4.5594*pow(time_since_trans_start,9)
+			+ 36.9529*pow(time_since_trans_start,8) - 121.8588*pow(time_since_trans_start,7)
+			+ 209.5627*pow(time_since_trans_start,6) - 200.1644*pow(time_since_trans_start,5)
+			+ 104.5549*pow(time_since_trans_start,4) - 26.9004*pow(time_since_trans_start,3)
+			+ 1.5904*pow(time_since_trans_start,2) + 0.5678*pow(time_since_trans_start,1) + 0.5477); 
+			
+			PX4_INFO("Start_time = %f; calculated_pitch = %f; calculated_thrust = %f", (double)time_since_trans_start, (double)calculated_pitch, (double)calculated_thrust);
 		}
 	}
 

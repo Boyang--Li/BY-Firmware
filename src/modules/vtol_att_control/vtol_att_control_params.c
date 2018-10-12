@@ -289,3 +289,13 @@ PARAM_DEFINE_FLOAT(VT_F_TR_OL_TM, 6.0f);
  * @group VTOL Attitude Control
  */
 PARAM_DEFINE_INT32(VT_FW_MOT_OFFID, 0);
+
+/**
+ * BY Optimal Transition Test mode
+ *
+ * If set to 1 transition in BY mode
+ *
+ * @boolean
+ * @group VTOL Attitude Control
+ */
+PARAM_DEFINE_INT32(VT_BY_TRANS, 0);

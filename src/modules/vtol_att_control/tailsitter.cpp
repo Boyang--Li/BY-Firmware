@@ -186,18 +186,40 @@ void Tailsitter::update_transition_state()
 	}
 
 	if (_vtol_schedule.flight_mode == TRANSITION_FRONT_P1) {
-
 		// create time dependant pitch angle set point + 0.2 rad overlap over the switch value
 		// modify the pitch angle setpoint to enable optimal transition
-		//_v_att_sp->pitch_body = _pitch_transition_start	- fabsf(PITCH_TRANSITION_FRONT_P1 - _pitch_transition_start) *
-		//			time_since_trans_start / _params->front_trans_duration;
 		// time will be less than 2s? or fixed to 2s ;;; Fitted with a polynomical by matlab and then put here		
 		// variables: _pitch_transition_start ; time_since_trans_start    pitch_cmd = F (t,pitch_start) 
-		_v_att_sp->pitch_body = _pitch_transition_start + (float)(-7.1911*pow(time_since_trans_start,9) 
-			+ 67.9945*pow(time_since_trans_start,8) - 273.5676*pow(time_since_trans_start,7) 
-			+ 611.8556*pow(time_since_trans_start,6) - 832.3488*pow(time_since_trans_start,5) 
-			+ 705.2701*pow(time_since_trans_start,4) - 364.02*pow(time_since_trans_start,3) 
-			+ 106.5292*pow(time_since_trans_start,2) - 15.708*pow(time_since_trans_start,1));
+		if (_attc->is_by_optimal_transition()) {
+			if((int)_params->front_trans_duration == 3){
+				_v_att_sp->pitch_body = _pitch_transition_start + (float)(-7.1911*pow(time_since_trans_start,9) 
+					+ 67.9945*pow(time_since_trans_start,8) - 273.5676*pow(time_since_trans_start,7) 
+					+ 611.8556*pow(time_since_trans_start,6) - 832.3488*pow(time_since_trans_start,5) 
+					+ 705.2701*pow(time_since_trans_start,4) - 364.02*pow(time_since_trans_start,3) 
+					+ 106.5292*pow(time_since_trans_start,2) - 15.708*pow(time_since_trans_start,1));
+			} else if ((int)_params->front_trans_duration == 4) {
+				_v_att_sp->pitch_body = _pitch_transition_start + (float)(-7.1911*pow(time_since_trans_start,9) 
+					+ 67.9945*pow(time_since_trans_start,8) - 273.5676*pow(time_since_trans_start,7) 
+					+ 611.8556*pow(time_since_trans_start,6) - 832.3488*pow(time_since_trans_start,5) 
+					+ 705.2701*pow(time_since_trans_start,4) - 364.02*pow(time_since_trans_start,3) 
+					+ 106.5292*pow(time_since_trans_start,2) - 15.708*pow(time_since_trans_start,1));
+			} else if ((int)_params->front_trans_duration == 5) {
+				_v_att_sp->pitch_body = _pitch_transition_start + (float)(-7.1911*pow(time_since_trans_start,9) 
+					+ 67.9945*pow(time_since_trans_start,8) - 273.5676*pow(time_since_trans_start,7) 
+					+ 611.8556*pow(time_since_trans_start,6) - 832.3488*pow(time_since_trans_start,5) 
+					+ 705.2701*pow(time_since_trans_start,4) - 364.02*pow(time_since_trans_start,3) 
+					+ 106.5292*pow(time_since_trans_start,2) - 15.708*pow(time_since_trans_start,1));
+			} else {
+				_v_att_sp->pitch_body = _pitch_transition_start + (float)(-7.1911*pow(time_since_trans_start,9) 
+					+ 67.9945*pow(time_since_trans_start,8) - 273.5676*pow(time_since_trans_start,7) 
+					+ 611.8556*pow(time_since_trans_start,6) - 832.3488*pow(time_since_trans_start,5) 
+					+ 705.2701*pow(time_since_trans_start,4) - 364.02*pow(time_since_trans_start,3) 
+					+ 106.5292*pow(time_since_trans_start,2) - 15.708*pow(time_since_trans_start,1));
+			}
+		} else {
+			_v_att_sp->pitch_body = _pitch_transition_start	- fabsf(PITCH_TRANSITION_FRONT_P1 - _pitch_transition_start) *
+			time_since_trans_start / _params->front_trans_duration;	
+		}
 		
 		_v_att_sp->pitch_body = math::constrain(_v_att_sp->pitch_body, PITCH_TRANSITION_FRONT_P1 - 0.2f,
 							_pitch_transition_start);
@@ -220,8 +242,14 @@ void Tailsitter::update_transition_state()
 		}
 
 		// create time dependant pitch angle set point stating at -pi/2 + 0.2 rad overlap over the switch value
-		_v_att_sp->pitch_body = M_PI_2_F + _pitch_transition_start + fabsf(PITCH_TRANSITION_BACK + 1.57f) *
-					time_since_trans_start / _params->back_trans_duration;
+		// BACK This equation is meaningless since all data will be constrained by |-2,-0.05|
+
+		//_v_att_sp->pitch_body = M_PI_2_F + _pitch_transition_start + fabsf(PITCH_TRANSITION_BACK + 1.57f) *
+		//			time_since_trans_start / _params->back_trans_duration;
+
+		_v_att_sp->pitch_body = _pitch_transition_start + fabsf(PITCH_TRANSITION_BACK + 1.57f) *
+			time_since_trans_start / _params->back_trans_duration;
+		
 		_v_att_sp->pitch_body = math::constrain(_v_att_sp->pitch_body, -2.0f, PITCH_TRANSITION_BACK + 0.2f);
 
 		// keep yaw disabled
@@ -233,15 +261,37 @@ void Tailsitter::update_transition_state()
 	}
 
 	// modify the throttle setpoint for optimal forward transition
-	if (_v_control_mode->flag_control_climb_rate_enabled) {
-	//	_v_att_sp->thrust = _params->front_trans_throttle;
-	//  variables: _pitch_transition_start ; time_since_trans_start    thrust_cmd = F (t,pitch_start) 
-		_v_att_sp->thrust = 0.2f + (float) (-4.5594*pow(time_since_trans_start,9)
-			+ 36.9529*pow(time_since_trans_start,8) - 121.8588*pow(time_since_trans_start,7)
-			+ 209.5627*pow(time_since_trans_start,6) - 200.1644*pow(time_since_trans_start,5)
-			+ 104.5549*pow(time_since_trans_start,4) - 26.9004*pow(time_since_trans_start,3)
-			+ 1.5904*pow(time_since_trans_start,2) + 0.5678*pow(time_since_trans_start,1) + 0.5477);
-
+	if (_v_control_mode->flag_control_climb_rate_enabled) {	
+	//  variables: time_since_trans_start    thrust_cmd = F (t,pitch_start) 
+		if (_attc->is_by_optimal_transition()) {
+			if ((int)_params->front_trans_duration == 3) {
+				_v_att_sp->thrust = 0.2f + (float) (-4.5594*pow(time_since_trans_start,9)
+					+ 36.9529*pow(time_since_trans_start,8) - 121.8588*pow(time_since_trans_start,7)
+					+ 209.5627*pow(time_since_trans_start,6) - 200.1644*pow(time_since_trans_start,5)
+					+ 104.5549*pow(time_since_trans_start,4) - 26.9004*pow(time_since_trans_start,3)
+					+ 1.5904*pow(time_since_trans_start,2) + 0.5678*pow(time_since_trans_start,1) + 0.5477);
+			} else if ((int)_params->front_trans_duration == 4) {
+				_v_att_sp->thrust = 0.2f + (float) (-4.5594*pow(time_since_trans_start,9)
+					+ 36.9529*pow(time_since_trans_start,8) - 121.8588*pow(time_since_trans_start,7)
+					+ 209.5627*pow(time_since_trans_start,6) - 200.1644*pow(time_since_trans_start,5)
+					+ 104.5549*pow(time_since_trans_start,4) - 26.9004*pow(time_since_trans_start,3)
+					+ 1.5904*pow(time_since_trans_start,2) + 0.5678*pow(time_since_trans_start,1) + 0.5477);
+			} else if ((int)_params->front_trans_duration == 5) {
+				_v_att_sp->thrust = 0.2f + (float) (-4.5594*pow(time_since_trans_start,9)
+					+ 36.9529*pow(time_since_trans_start,8) - 121.8588*pow(time_since_trans_start,7)
+					+ 209.5627*pow(time_since_trans_start,6) - 200.1644*pow(time_since_trans_start,5)
+					+ 104.5549*pow(time_since_trans_start,4) - 26.9004*pow(time_since_trans_start,3)
+					+ 1.5904*pow(time_since_trans_start,2) + 0.5678*pow(time_since_trans_start,1) + 0.5477);
+			} else {
+				_v_att_sp->thrust = 0.3f + (float) (-4.5594*pow(time_since_trans_start,9)
+					+ 36.9529*pow(time_since_trans_start,8) - 121.8588*pow(time_since_trans_start,7)
+					+ 209.5627*pow(time_since_trans_start,6) - 200.1644*pow(time_since_trans_start,5)
+					+ 104.5549*pow(time_since_trans_start,4) - 26.9004*pow(time_since_trans_start,3)
+					+ 1.5904*pow(time_since_trans_start,2) + 0.5678*pow(time_since_trans_start,1) + 0.5477);				
+			}
+		} else {
+			_v_att_sp->thrust = _params->front_trans_throttle;
+		}
 		_v_att_sp->thrust = math::constrain(_v_att_sp->thrust, 0.0f, 1.0f);
 	} else {
 		_v_att_sp->thrust = _mc_virtual_att_sp->thrust;

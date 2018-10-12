@@ -86,7 +86,8 @@ VtolAttitudeControl::VtolAttitudeControl()
 	_params_handles.front_trans_timeout = param_find("VT_TRANS_TIMEOUT");
 	_params_handles.mpc_xy_cruise = param_find("MPC_XY_CRUISE");
 	_params_handles.fw_motors_off = param_find("VT_FW_MOT_OFFID");
-	_params_handles.by_test_enable = param_find("VT_BY_TRANS");
+	_params_handles.by_test_F_enable = param_find("VT_BY_F_TRANS");
+	_params_handles.by_test_B_enable = param_find("VT_BY_B_TRANS");
 
 	/* fetch initial parameter values */
 	parameters_update();
@@ -415,11 +416,27 @@ VtolAttitudeControl::is_fixed_wing_requested()
  * Changed either via switch aux5.
  */
 bool
-VtolAttitudeControl::is_by_optimal_transition()
+VtolAttitudeControl::is_by_optimal_F_transition()
 {
 	int opti_trans = false;
 	//((double)_manual_control_sp.aux5 > 0.8)
-	if (_params.by_test_enable) {	
+	if (_params.by_test_F_enable) {
+		opti_trans = true;
+	}
+
+	return opti_trans;
+}
+
+/*
+ * Returns true if my optimal transitoin is requested.
+ * Changed either via switch aux5.
+ */
+bool
+VtolAttitudeControl::is_by_optimal_B_transition()
+{
+	int opti_trans = false;
+	//((double)_manual_control_sp.aux5 > 0.8)
+	if (_params.by_test_B_enable) {	
 		opti_trans = true;
 	}
 
@@ -503,8 +520,10 @@ VtolAttitudeControl::parameters_update()
 	param_get(_params_handles.front_trans_timeout, &_params.front_trans_timeout);
 	param_get(_params_handles.mpc_xy_cruise, &_params.mpc_xy_cruise);
 	param_get(_params_handles.fw_motors_off, &_params.fw_motors_off);
-	param_get(_params_handles.by_test_enable, &l);
-	_params.by_test_enable = l;
+	param_get(_params_handles.by_test_F_enable, &l);
+	_params.by_test_F_enable = l;
+	param_get(_params_handles.by_test_B_enable, &l);
+	_params.by_test_B_enable = l;
 	// standard vtol always needs to turn all mc motors off when going into fixed wing mode
 	// normally the parameter fw_motors_off can be used to specify this, however, since historically standard vtol code
 	// did not use the interface of the VtolType class to disable motors we will have users flying  around with a wrong

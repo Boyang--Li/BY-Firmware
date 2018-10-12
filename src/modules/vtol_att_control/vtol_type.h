@@ -68,7 +68,8 @@ struct Params {
 	float front_trans_timeout;
 	float mpc_xy_cruise;
 	int32_t fw_motors_off;			/**< bitmask of all motors that should be off in fixed wing mode */
-	int32_t by_test_enable;			/* optimal transition mask */
+	int32_t by_test_F_enable;			/* optimal transition mask */
+	int32_t by_test_B_enable;			/* optimal transition mask */
 };
 
 // Has to match 1:1 msg/vtol_vehicle_status.msg

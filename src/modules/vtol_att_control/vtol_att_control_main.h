@@ -96,7 +96,8 @@ public:
 
 	int start();	/* start the task and return OK on success */
 	bool is_fixed_wing_requested();
-	bool is_by_optimal_transition();
+	bool is_by_optimal_F_transition();
+	bool is_by_optimal_B_transition();
 	void abort_front_transition(const char *reason);
 
 	struct actuator_controls_s 			*get_actuators_fw_in() {return &_actuators_fw_in;}
@@ -200,7 +201,8 @@ private:
 		param_t front_trans_timeout;
 		param_t mpc_xy_cruise;
 		param_t fw_motors_off;
-		param_t by_test_enable;
+		param_t by_test_F_enable;
+		param_t by_test_B_enable;
 	} _params_handles{};
 
 	/* for multicopters it is usual to have a non-zero idle speed of the engines

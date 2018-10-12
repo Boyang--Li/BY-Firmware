@@ -298,4 +298,14 @@ PARAM_DEFINE_INT32(VT_FW_MOT_OFFID, 0);
  * @boolean
  * @group VTOL Attitude Control
  */
-PARAM_DEFINE_INT32(VT_BY_TRANS, 0);
+PARAM_DEFINE_INT32(VT_BY_F_TRANS, 0);
+
+/**
+ * BY Optimal Transition Test mode
+ *
+ * If set to 1 transition in BY mode
+ *
+ * @boolean
+ * @group VTOL Attitude Control
+ */
+PARAM_DEFINE_INT32(VT_BY_B_TRANS, 0);

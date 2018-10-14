@@ -177,23 +177,29 @@ void Tailsitter::update_transition_state()
 
 	// coefficients of optimal transition Forward_Pitch/Throttle (Duration, Coefs)
 	int F_group = (int)_params->front_trans_duration - 2;
-	// 2s 3s 4s 5s
-	double F_P[4][10] = {{-7.4199, 68.4020, -265.1932, 560.3263, -696.2477, 507.6028, -199.8091, 31.6669, 0.8125, -1.1578},
-				{-0.2349, 3.2259, -18.6008, 58.5090, -109.0086, 121.7502, -78.0129, 25.4079, -3.4404, -0.7483},
-				{-0.0113, 0.2280, -1.9051, 8.5602, -22.4758, 35.0094, -31.3998, 15.2099, -3.8951, -0.5119},
-				{-0.0012, 0.0323, -0.3522, 2.0713, -7.1725, 14.9228, -18.2153, 12.2450, -4.1813, -0.4604}};
-	double F_T[4][10] = {{-4.1409, 34.2731, -116.7371, 210.9709, -217.3414, 127.2911, -39.5723, 5.2551, -0.0268, 0.5698},
-				{-0.1845, 2.2684, -11.4027, 30.1122, -44.5822, 36.3603, -14.5111, 1.5223, 0.4489, 0.5389},
-				{0.0010, -0.0259, 0.2512, -1.2290, 3.3790, -5.4857, 5.4397, -3.3604, 1.0260, 0.5247},
-				{-0.0016, 0.0346, -0.3199, 1.6069, -4.7498, 8.3301, -8.1908, 3.8157, -0.5911, 0.6037}};
+	// 2s 3s 4s group2 5 6
+	double F_P[3][10] = {
+				{-4.9728, 47.9880, -191.5961, 408.1457, -494.8295, 329.8409, -96.9437, -4.2928, 7.2201, -1.5708},
+				{-0.1972, 2.6923, -15.4113, 47.9104, -87.3046, 93.1989, -54.0709, 13.4272, -0.2897, -0.9938},
+				{-0.0151, 0.2764, -2.1128, 8.7212, -21.0597, 30.0813, -24.4971, 10.5636, -2.4439, -0.7076},
+			//	{-2.3266, 17.6817, -53.3922, 80.6358, -61.4190, 17.8916, 3.4433, -2.4452, -0.8518, -0.2252},
+			//	{-0.0393, 0.4484, -2.0841, 5.1639, -7.5275, 6.6682, -3.4893, 1.3375, -1.2412, -0.2018}
+			};
+	double F_T[3][10] = {
+				{-4.1393, 34.2123, -116.3450, 209.8760, -215.7426, 126.0184, -39.0433, 5.1579, -0.0231, 0.5701},
+				{-0.1517, 1.8497, -9.2200, 24.1469, -35.4799, 28.7293, -11.3295, 1.1173, 0.3691, 0.5409},
+				{-0.0119, 0.1990, -1.3787, 5.1091, -10.9309, 13.5100, -8.8740, 2.1902, 0.1505, 0.5514},
+			//	{-2.2981, 18.9414, -64.1772, 115.1710, -117.2736, 66.8484, -19.1117, 1.6381, 0.3420, 0.5084},
+			//	{-0.0740, 0.9278, -4.7957, 13.2427, -21.2079, 20.0976, -11.0547, 3.1910, -0.2882, 0.5485}
+			};
 
 	int B_group = (int)_params->back_trans_duration - 1;
 	// 1s 2s 3s
-	double B_P[3][10] = {{-3468.4980, 16057.4460, -31597.5265, 34253.6207, -22136.9947, 8627.1658, -1966.5836, 245.5379, -14.3973, 0.3184},
-				{-7.2341, 62.3607, -223.4805, 427.4301, -461.2393, 263.4110, -50.7292, -20.4003, 11.2437, -1.3922}, 
+	double B_P[3][10] = {{-44.9983, -587.7883, 2821.6714, -4925.8781, 4427.2289, -2236.5467, 634.2207, -94.2147, 6.1919,-0.1166},
+				{3.1768, -24.2673, 75.3146, -122.8466, 155.6572, -68.5058, 30.6047, -12.0157, 3.2236, -0.3468}, 
 				{0.0133, -0.0160, -0.8095, 4.9849, -12.3784, 14.0746, -4.7415, -3.9180, 3.4549, -0.6814}};	 
-	double B_T[3][10] = {{-1788.5736, 6147.3816, -7615.7336, 2944.9074, 2076.3554, -2803.5485, 1310.9067, -307.1693, 35.4740, -1.5708},
-				{-12.8003, 126.3106, -531.5831, 1240.6703, -1747.5478, 1513.9686, -786.0760, 225.3139, -28.7702, 0.9923},
+	double B_T[3][10] = {{-5303.6844, 19054.9895, -27164.7132, 19855.5617, -8376.9087, 2465.5583, -644.0605, 121.4833, -7.8890, 0.1469},
+				{-6.9821, 54.0154, -164.6941, 244.4736, -164.0954, 6.0269, 55.2311, -29.0541, 5.5247, 0.0979},
 				{0.0031, 0.0603, -0.5498, 0.7082, 4.7367, -18.3354, 25.7949, -16.0712, 4.0318, 0.0872}};
 
 	if (!_flag_was_in_trans_mode) {
@@ -231,7 +237,7 @@ void Tailsitter::update_transition_state()
 		//  variables: time_since_trans_start    thrust_cmd = F (t,pitch_start) 
 		if (_v_control_mode->flag_control_climb_rate_enabled) {	
 			if (_attc->is_by_optimal_F_transition()) {
-				_v_att_sp->thrust = 0.2f + (float)( F_T[F_group][0]*pow(time_since_trans_start,9) 
+				_v_att_sp->thrust = 0.0f + (float)( F_T[F_group][0]*pow(time_since_trans_start,9) 
 				+ F_T[F_group][1]*pow(time_since_trans_start,8) + F_T[F_group][2]*pow(time_since_trans_start,7) 
 				+ F_T[F_group][3]*pow(time_since_trans_start,6) + F_T[F_group][4]*pow(time_since_trans_start,5) 
 				+ F_T[F_group][5]*pow(time_since_trans_start,4) + F_T[F_group][6]*pow(time_since_trans_start,3) 
@@ -274,7 +280,7 @@ void Tailsitter::update_transition_state()
 				+ B_P[B_group][7]*pow(time_since_trans_start,2) + B_P[B_group][8]*pow(time_since_trans_start,1) 
 				+ B_P[B_group][9] );
 		} else { // original modified back transition in  back_trans_duration time
-		_v_att_sp->pitch_body = _pitch_transition_start + fabsf(PITCH_TRANSITION_BACK + 1.57f) *
+		_v_att_sp->pitch_body = M_PI_2_F + _pitch_transition_start + fabsf(PITCH_TRANSITION_BACK + 1.57f) *
 			time_since_trans_start / _params->back_trans_duration;
 		}
 
@@ -284,7 +290,7 @@ void Tailsitter::update_transition_state()
 		if (_v_control_mode->flag_control_climb_rate_enabled) {	
 		//  variables: time_since_trans_start    thrust_cmd = F (t,pitch_start) 
 			if (_attc->is_by_optimal_B_transition()) {
-				_v_att_sp->thrust = 0.2f + (float)( B_T[B_group][0]*pow(time_since_trans_start,9) 
+				_v_att_sp->thrust = 0.0f + (float)( B_T[B_group][0]*pow(time_since_trans_start,9) 
 				+ B_T[B_group][1]*pow(time_since_trans_start,8) + B_T[B_group][2]*pow(time_since_trans_start,7) 
 				+ B_T[B_group][3]*pow(time_since_trans_start,6) + B_T[B_group][4]*pow(time_since_trans_start,5) 
 				+ B_T[B_group][5]*pow(time_since_trans_start,4) + B_T[B_group][6]*pow(time_since_trans_start,3) 

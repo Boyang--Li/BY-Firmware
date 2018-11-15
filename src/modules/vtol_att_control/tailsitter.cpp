@@ -177,20 +177,22 @@ void Tailsitter::update_transition_state()
 
 	// coefficients of optimal transition Forward_Pitch/Throttle (Duration, Coefs)
 	int F_group = (int)_params->front_trans_duration - 2;
-	// 2s 3s 4s group2 5 6
+	// 2s 3s 4s group2 3s 4s with theta cost
 	double F_P[3][10] = {
 				{-4.9728, 47.9880, -191.5961, 408.1457, -494.8295, 329.8409, -96.9437, -4.2928, 7.2201, -1.5708},
-				{-0.1972, 2.6923, -15.4113, 47.9104, -87.3046, 93.1989, -54.0709, 13.4272, -0.2897, -0.9938},
-				{-0.0151, 0.2764, -2.1128, 8.7212, -21.0597, 30.0813, -24.4971, 10.5636, -2.4439, -0.7076},
-			//	{-2.3266, 17.6817, -53.3922, 80.6358, -61.4190, 17.8916, 3.4433, -2.4452, -0.8518, -0.2252},
-			//	{-0.0393, 0.4484, -2.0841, 5.1639, -7.5275, 6.6682, -3.4893, 1.3375, -1.2412, -0.2018}
+			//	{-0.1972, 2.6923, -15.4113, 47.9104, -87.3046, 93.1989, -54.0709, 13.4272, -0.2897, -0.9938},
+			//	{-0.0151, 0.2764, -2.1128, 8.7212, -21.0597, 30.0813, -24.4971, 10.5636, -2.4439, -0.7076},
+			//with theta cost 2s and 3s
+				{-2.3266, 17.6817, -53.3922, 80.6358, -61.4190, 17.8916, 3.4433, -2.4452, -0.8518, -0.2252},
+				{-0.0393, 0.4484, -2.0841, 5.1639, -7.5275, 6.6682, -3.4893, 1.3375, -1.2412, -0.2018}
 			};
 	double F_T[3][10] = {
 				{-4.1393, 34.2123, -116.3450, 209.8760, -215.7426, 126.0184, -39.0433, 5.1579, -0.0231, 0.5701},
-				{-0.1517, 1.8497, -9.2200, 24.1469, -35.4799, 28.7293, -11.3295, 1.1173, 0.3691, 0.5409},
-				{-0.0119, 0.1990, -1.3787, 5.1091, -10.9309, 13.5100, -8.8740, 2.1902, 0.1505, 0.5514},
-			//	{-2.2981, 18.9414, -64.1772, 115.1710, -117.2736, 66.8484, -19.1117, 1.6381, 0.3420, 0.5084},
-			//	{-0.0740, 0.9278, -4.7957, 13.2427, -21.2079, 20.0976, -11.0547, 3.1910, -0.2882, 0.5485}
+			//	{-0.1517, 1.8497, -9.2200, 24.1469, -35.4799, 28.7293, -11.3295, 1.1173, 0.3691, 0.5409},
+			//	{-0.0119, 0.1990, -1.3787, 5.1091, -10.9309, 13.5100, -8.8740, 2.1902, 0.1505, 0.5514},
+			// with theta cost 2s and 3s
+				{-2.2981, 18.9414, -64.1772, 115.1710, -117.2736, 66.8484, -19.1117, 1.6381, 0.3420, 0.5084},
+				{-0.0740, 0.9278, -4.7957, 13.2427, -21.2079, 20.0976, -11.0547, 3.1910, -0.2882, 0.5485}
 			};
 
 	int B_group = (int)_params->back_trans_duration - 1;
@@ -237,7 +239,7 @@ void Tailsitter::update_transition_state()
 		//  variables: time_since_trans_start    thrust_cmd = F (t,pitch_start) 
 		if (_v_control_mode->flag_control_climb_rate_enabled) {	
 			if (_attc->is_by_optimal_F_transition()) {
-				_v_att_sp->thrust = 0.0f + (float)( F_T[F_group][0]*pow(time_since_trans_start,9) 
+				_v_att_sp->thrust = 0.2f + (float)( F_T[F_group][0]*pow(time_since_trans_start,9) 
 				+ F_T[F_group][1]*pow(time_since_trans_start,8) + F_T[F_group][2]*pow(time_since_trans_start,7) 
 				+ F_T[F_group][3]*pow(time_since_trans_start,6) + F_T[F_group][4]*pow(time_since_trans_start,5) 
 				+ F_T[F_group][5]*pow(time_since_trans_start,4) + F_T[F_group][6]*pow(time_since_trans_start,3) 
@@ -290,7 +292,7 @@ void Tailsitter::update_transition_state()
 		if (_v_control_mode->flag_control_climb_rate_enabled) {	
 		//  variables: time_since_trans_start    thrust_cmd = F (t,pitch_start) 
 			if (_attc->is_by_optimal_B_transition()) {
-				_v_att_sp->thrust = 0.0f + (float)( B_T[B_group][0]*pow(time_since_trans_start,9) 
+				_v_att_sp->thrust = 0.2f + (float)( B_T[B_group][0]*pow(time_since_trans_start,9) 
 				+ B_T[B_group][1]*pow(time_since_trans_start,8) + B_T[B_group][2]*pow(time_since_trans_start,7) 
 				+ B_T[B_group][3]*pow(time_since_trans_start,6) + B_T[B_group][4]*pow(time_since_trans_start,5) 
 				+ B_T[B_group][5]*pow(time_since_trans_start,4) + B_T[B_group][6]*pow(time_since_trans_start,3) 
